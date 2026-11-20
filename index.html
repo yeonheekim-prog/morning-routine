@@ -149,6 +149,13 @@ header .spacer{margin-left:auto}
 .dexgrid img{width:80px;height:80px;object-fit:contain}
 .dexgrid .c{color:var(--muted);font-size:12px}
 
+/* ── 소리 알림 배너 ── */
+.toast{position:fixed;left:50%;top:18px;transform:translate(-50%,-140%);z-index:60;padding:18px 28px;border-radius:18px;font-size:clamp(22px,2.6vw,32px);font-weight:900;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,1.4,.4,1);max-width:92vw;text-align:center}
+.toast.show{transform:translate(-50%,0)}
+.toast.five{background:var(--red);color:#fff}
+.toast.late{background:var(--yellow);color:#1a1300}
+.soundrow{display:flex;gap:10px;margin-top:10px}
+
 /* ── 날씨 배경 ── */
 #sky{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg);transition:background 1.5s}
 #sky::before,#sky::after{content:"";position:absolute;inset:0;pointer-events:none}
@@ -181,6 +188,7 @@ header .spacer{margin-left:auto}
 </head>
 <body>
 <div id="sky"></div>
+<div class="toast" id="toast"></div>
 <div class="app">
   <header>
     <div class="clock" id="clock">--:--</div>
@@ -252,6 +260,11 @@ header .spacer{margin-left:auto}
     <button class="switch" id="wakeSw"><span>💡 화면 꺼짐 방지</span><span class="k"></span></button>
     <div class="wakeinfo" id="wakeInfo"></div>
   </div>
+  <div class="row">
+    <button class="switch" id="soundSw"><span>🔔 소리 알림 (출발 5분 전 · 미션 밀릴 때)</span><span class="k"></span></button>
+    <div class="soundrow"><button class="btn" id="testFive">5분 전 소리 듣기</button><button class="btn" id="testLate">밀림 소리 듣기</button></div>
+    <div class="wakeinfo">태블릿 소리를 켜 두세요. 페이지를 연 뒤 화면을 한 번 터치해야 소리가 나요(브라우저 규칙).</div>
+  </div>
   <div class="row two">
     <div><label>이름</label><input type="text" id="sName"></div>
     <div><label>시작 시간</label><input type="time" id="sStart"></div>
@@ -286,7 +299,7 @@ const MAX_ID = 1025;
 const WD = ['일','월','화','수','목','금','토'];
 
 const DEFAULT = {
-  name: 'Nick', start: '07:20', depart: '08:20', wake: false,
+  name: 'Nick', start: '07:20', depart: '08:20', wake: false, sound: true,
   routine: [
     {t:'07:20', label:'이불 정리'},
     {t:'07:25', label:'아침 먹기'},
@@ -560,6 +573,7 @@ function renderClock(){
     $('countLbl').textContent = '내일 출발';
     $('countVal').textContent = st.depart;
   }
+  checkAlerts(n, s, e);
   // 타임라인
   $('tlRange').textContent = `${st.start} 시작 → ${st.depart} 출발`;
   const tp = Math.min(1, Math.max(0, (n - s) / (e - s)));
@@ -715,6 +729,70 @@ document.addEventListener('visibilitychange', () => {
 // 자동으로 다시 켜기 실패 시, 첫 터치 때 재시도
 document.addEventListener('pointerdown', () => { if (S.settings.wake && !lock) wakeOn(); }, {passive:true});
 
+/* ── 소리 알림 ── */
+let actx = null;
+function audio(){
+  try{
+    if (!actx){ const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; actx = new A(); }
+    if (actx.state === 'suspended') actx.resume();
+  } catch(e){ return null; }
+  return actx;
+}
+document.addEventListener('pointerdown', () => audio(), {passive:true}); // 첫 터치에 소리 잠금 해제
+const SND = { five:[[784,.22],[988,.22],[1175,.22],[1568,.6]], late:[[659,.32],[523,.5]] };
+function tone(seq){
+  const c = audio(); if (!c) return;
+  let t = c.currentTime + .05;
+  for (let rep = 0; rep < 2; rep++){
+    seq.forEach(([f,d]) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.4, t+.02); g.gain.exponentialRampToValueAtTime(.001, t+d);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+d+.05);
+      t += d * .9;
+    });
+    t += .35;
+  }
+}
+function say(text){
+  try{
+    if (!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 1.05;
+    speechSynthesis.cancel(); setTimeout(() => speechSynthesis.speak(u), 2200);
+  } catch(e){}
+}
+let toastTimer = null;
+function showToast(msg, kind){
+  const el = $('toast'); el.textContent = msg; el.className = 'toast ' + kind + ' show';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 10000);
+}
+$('toast').addEventListener('click', () => $('toast').classList.remove('show'));
+function alertKid(kind, msg, speech){
+  if (S.settings.sound){ tone(SND[kind]); if (speech) say(speech); }
+  showToast(msg, kind);
+}
+function checkAlerts(n, s, e){
+  if (n < s || n >= e) return;
+  const al = S.day.al || (S.day.al = {late:{}});
+  const r = S.settings.routine;
+  if (!al.five && n >= e - 5){
+    al.five = true; save();
+    alertKid('five', '⏰ 등교 5분 전! 신발 신고 출발 준비', `${S.settings.name}, 등교 5분 전이에요. 출발 준비하세요!`);
+    return;
+  }
+  const newly = [];
+  r.forEach((t,i) => { if (!S.day.tasks[i] && toMin(t.t) + 5 <= n && !al.late[i]) newly.push(i); });
+  if (newly.length){
+    newly.forEach(i => al.late[i] = true); save();
+    const next = r.find((t,i) => !S.day.tasks[i]);
+    if (next) alertKid('late', `⏩ 미션이 밀렸어요 — 지금: ${next.label}`, `${next.label}, 할 시간이에요!`);
+  }
+}
+function updSoundUI(){ $('soundSw').classList.toggle('on', !!S.settings.sound); }
+$('soundSw').addEventListener('click', () => { S.settings.sound = !S.settings.sound; save(); updSoundUI(); });
+$('testFive').addEventListener('click', () => { tone(SND.five); say('등교 5분 전이에요. 출발 준비하세요!'); });
+$('testLate').addEventListener('click', () => { tone(SND.late); say('양치, 할 시간이에요!'); });
+
 /* ── 전체 화면 ── */
 $('fsBtn').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
@@ -730,7 +808,7 @@ $('setBtn').addEventListener('click', () => {
   $('sDaily').value = st.daily.join(', ');
   if (st.wake) wakeMsg(lock ? 'ok' : 'bad', lock ? '켜짐 — 이 화면이 열려 있는 동안 꺼지지 않아요.' : '설정은 켜짐이지만 아직 적용 전이에요. 화면을 터치하면 다시 시도해요.');
   else wakeMsg('', '꺼짐 — 켜 두면 거실에 세워 둬도 화면이 안 꺼져요.');
-  updWakeUI();
+  updWakeUI(); updSoundUI();
   $('setOv').classList.add('show');
 });
 const splitList = v => v.split(/[,，、]/).map(x => x.trim()).filter(Boolean);
