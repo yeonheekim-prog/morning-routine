@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Nick 아침 루틴</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23f2f2f2' stroke='%23111' stroke-width='6'/%3E%3Cpath d='M4 50a46 46 0 0 1 92 0z' fill='%23ff4d5a' stroke='%23111' stroke-width='6'/%3E%3Ccircle cx='50' cy='50' r='13' fill='%23fff' stroke='%23111' stroke-width='6'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b1020; --panel:#141b2f; --panel2:#1b2440; --line:#28324f;
+  --text:#eef2ff; --muted:#8e99ba; --red:#ff4d5a; --yellow:#ffcb3d;
+  --green:#3ddc97; --blue:#5aa9ff; --purple:#a78bfa;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  overflow-x:hidden;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.app{display:grid;grid-template-rows:auto auto 1fr;gap:14px;padding:16px 18px 18px;min-height:100vh;max-width:1600px;margin:0 auto}
+
+/* ── 헤더 ── */
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.clock{font-size:clamp(44px,6vw,76px);font-weight:800;letter-spacing:-2px;font-variant-numeric:tabular-nums;line-height:1}
+.date{color:var(--muted);font-size:18px;font-weight:600;line-height:1.35}
+.date b{color:var(--text);font-size:22px}
+.count{margin-left:auto;text-align:right;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:10px 20px}
+.count .lbl{font-size:15px;color:var(--muted);font-weight:700}
+.count .val{font-size:clamp(34px,4.4vw,54px);font-weight:900;font-variant-numeric:tabular-nums;line-height:1.05}
+.count.warn .val{color:var(--yellow)} .count.hot .val{color:var(--red)} .count.ok .val{color:var(--green)}
+.iconbtn{width:52px;height:52px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;font-size:24px}
+.iconbtn.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(61,220,151,.25) inset}
+
+/* ── 타임라인 ── */
+.timeline{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 18px}
+.tl-top{display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.pace{padding:4px 12px;border-radius:999px;font-size:15px;font-weight:800}
+.pace.good{background:rgba(61,220,151,.15);color:var(--green)}
+.pace.bad{background:rgba(255,203,61,.15);color:var(--yellow)}
+.pace.idle{background:rgba(142,153,186,.15);color:var(--muted)}
+.bar{position:relative;height:16px;background:var(--panel2);border-radius:999px;overflow:hidden}
+.bar .time{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#3b4a7a,#5a6aa0);border-radius:999px;transition:width 1s linear}
+.bar .task{position:absolute;inset:4px auto 4px 0;background:var(--red);border-radius:999px;transition:width .5s}
+.tl-legend{display:flex;gap:16px;margin-top:6px;font-size:13px;color:var(--muted)}
+.tl-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* ── 본문 그리드 ── */
+.grid{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:14px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px 18px;min-width:0}
+.card h2{margin:0 0 12px;font-size:17px;letter-spacing:.5px;color:var(--muted);font-weight:800;display:flex;align-items:center;gap:8px}
+.card h2 .sub{margin-left:auto;font-size:15px;color:var(--text)}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* 루틴 */
+.tasks{display:flex;flex-direction:column;gap:9px}
+.task{display:flex;align-items:center;gap:14px;background:var(--panel2);border:2px solid transparent;border-radius:16px;padding:10px 14px;min-height:72px;text-align:left;width:100%;transition:transform .1s,border-color .2s}
+.task:active{transform:scale(.98)}
+.task.now{border-color:var(--blue)}
+.task.late{border-color:var(--yellow)}
+.task.done{background:#152a26}
+.task .tm{font-size:15px;color:var(--muted);font-weight:800;width:52px;font-variant-numeric:tabular-nums}
+.task .nm{flex:1;font-size:21px;font-weight:700}
+.task.done .nm{color:#9fb9ad;text-decoration:line-through;text-decoration-thickness:2px}
+.stamp{width:58px;height:58px;border-radius:50%;flex:none;display:grid;place-items:center;border:2px dashed #3a4670;position:relative}
+.stamp img{width:62px;height:62px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.task.done .stamp{border:2px solid var(--green);background:radial-gradient(circle,#1f3d36,#152a26)}
+.stamp .shiny{position:absolute;top:-6px;right:-6px;font-size:16px}
+.allclear{margin-top:10px;padding:12px 14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,77,90,.2),rgba(255,203,61,.2));font-weight:800;font-size:17px;display:none;align-items:center;gap:12px}
+.allclear.show{display:flex}
+.allclear img{width:54px;height:54px}
+
+/* 확언 */
+.affirm .ko{font-size:clamp(22px,2.3vw,30px);font-weight:800;line-height:1.4;word-break:keep-all}
+.affirm .en{margin-top:8px;font-size:clamp(16px,1.6vw,20px);color:var(--blue);font-weight:600;font-style:italic}
+
+/* 준비물 */
+.items{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:14px;padding:11px 14px;font-size:19px;font-weight:700;width:100%;text-align:left}
+.item .box{width:28px;height:28px;border-radius:8px;border:2px solid #4a5684;display:grid;place-items:center;flex:none;font-size:18px}
+.item.done{color:#8fa59b}
+.item.done .box{background:var(--green);border-color:var(--green);color:#0b1020}
+.item .tag{margin-left:auto;font-size:12px;padding:3px 8px;border-radius:999px;background:#2b3558;color:var(--muted);font-weight:800}
+.item .tag.today{background:rgba(255,77,90,.2);color:#ff8f97}
+.item .tag.wx{background:rgba(90,169,255,.18);color:var(--blue)}
+.empty{color:var(--muted);font-size:16px;padding:6px 2px}
+
+/* 날씨 */
+.wx-main{display:flex;align-items:center;gap:14px}
+.wx-ic{font-size:54px;line-height:1}
+.wx-t{font-size:44px;font-weight:900;line-height:1}
+.wx-d{color:var(--muted);font-size:15px;font-weight:600;margin-top:4px}
+.wx-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.chip{background:var(--panel2);border-radius:10px;padding:7px 10px;font-size:14px;font-weight:700}
+.chip b{font-size:16px}
+
+/* 도감 */
+.dex-strip{display:flex;gap:6px;flex-wrap:wrap}
+.dex-strip .mon{width:52px;height:52px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;position:relative}
+.dex-strip img{width:50px;height:50px;object-fit:contain}
+.dex-strip .mon.leg{box-shadow:0 0 0 2px var(--yellow) inset}
+.dexbtn{margin-top:10px;width:100%;padding:11px;border-radius:12px;background:var(--panel2);font-weight:800;font-size:16px}
+
+/* 오버레이 */
+.ov{position:fixed;inset:0;background:rgba(5,8,18,.82);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.ov.show{display:flex}
+.reveal{text-align:center;animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+.reveal .ball{width:110px;height:110px;margin:0 auto;animation:shake .5s ease-in-out 2}
+.reveal img{width:min(300px,60vw);height:min(300px,60vw);object-fit:contain;filter:drop-shadow(0 8px 30px rgba(90,169,255,.5))}
+.reveal .rk{font-size:15px;font-weight:800;color:var(--yellow);letter-spacing:2px}
+.reveal .nm{font-size:44px;font-weight:900;margin-top:4px}
+.reveal .en{color:var(--muted);font-size:18px;font-weight:700}
+.reveal .types{margin-top:10px;display:flex;gap:6px;justify-content:center}
+.reveal .types span{padding:4px 12px;border-radius:999px;font-weight:800;font-size:15px;background:#2b3558}
+.reveal .hint{margin-top:18px;color:var(--muted);font-size:15px}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-18deg)}75%{transform:rotate(18deg)}}
+
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:22px;width:min(760px,100%);max-height:92vh;overflow:auto;padding:22px;user-select:text;-webkit-user-select:text}
+.sheet h3{margin:0 0 4px;font-size:22px}
+.sheet .row{margin-top:16px}
+.sheet label{display:block;font-size:14px;color:var(--muted);font-weight:800;margin-bottom:6px}
+.sheet input[type=text],.sheet input[type=time],.sheet textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
+.sheet textarea{min-height:170px;line-height:1.6}
+.sheet .two{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.sheet .week{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center}
+.sheet .week span{font-weight:800;text-align:center}
+.sheet .help{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+.switch{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:14px;padding:14px;width:100%;text-align:left;font-weight:800;font-size:17px}
+.switch .k{margin-left:auto;width:54px;height:30px;border-radius:999px;background:#3a4466;position:relative;transition:.2s;flex:none}
+.switch .k::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
+.switch.on .k{background:var(--green)} .switch.on .k::after{left:27px}
+.wakeinfo{font-size:14px;margin-top:8px;line-height:1.55;color:var(--muted)}
+.wakeinfo.ok{color:var(--green)} .wakeinfo.bad{color:var(--yellow)}
+.btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{padding:13px 20px;border-radius:12px;background:var(--panel2);font-weight:800;font-size:16px}
+.btn.pri{background:var(--red);color:#fff}
+.btn.ghost{color:var(--muted)}
+.dexgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:14px}
+.dexgrid .m{background:var(--panel2);border-radius:14px;padding:6px;text-align:center;font-size:13px;font-weight:700}
+.dexgrid img{width:80px;height:80px;object-fit:contain}
+.dexgrid .c{color:var(--muted);font-size:12px}
+
+/* 세로 화면·작은 화면 */
+@media (max-width:1100px){ .grid{grid-template-columns:1fr 1fr} .grid>.col:last-child{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr} }
+@media (max-width:720px){ .grid{grid-template-columns:1fr} .grid>.col:last-child{grid-template-columns:1fr} .count{margin-left:0;width:100%;text-align:left} .sheet .two{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="clock" id="clock">--:--</div>
+    <div class="date" id="date"></div>
+    <div class="count" id="count"><div class="lbl" id="countLbl"></div><div class="val" id="countVal">--</div></div>
+    <button class="iconbtn" id="wakeBtn" title="화면 꺼짐 방지">💡</button>
+    <button class="iconbtn" id="fsBtn" title="전체 화면">⛶</button>
+    <button class="iconbtn" id="setBtn" title="설정">⚙️</button>
+  </header>
+
+  <section class="timeline">
+    <div class="tl-top"><span id="tlRange"></span><span class="pace idle" id="pace">대기 중</span></div>
+    <div class="bar"><div class="time" id="barTime"></div><div class="task" id="barTask"></div></div>
+    <div class="tl-legend"><span><i style="background:#5a6aa0"></i>흐른 시간</span><span><i style="background:var(--red)"></i>끝낸 루틴</span></div>
+  </section>
+
+  <main class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>🎯 오늘의 미션 <span class="sub" id="taskCount"></span></h2>
+        <div class="tasks" id="tasks"></div>
+        <div class="allclear" id="allclear"><img id="bonusImg" alt=""><div id="bonusTxt"></div></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card">
+        <h2>🎒 오늘 챙길 것 <span class="sub" id="itemCount"></span></h2>
+        <div class="items" id="items"></div>
+      </section>
+      <section class="card" id="wxCard">
+        <h2>🌤 West End 날씨 <span class="sub" id="wxUpd"></span></h2>
+        <div id="wx"><div class="empty">날씨 불러오는 중…</div></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card affirm">
+        <h2>💬 오늘의 한마디</h2>
+        <div class="ko" id="affKo"></div>
+        <div class="en" id="affEn"></div>
+      </section>
+      <section class="card">
+        <h2>📘 내 도감 <span class="sub" id="dexCount"></span></h2>
+        <div class="dex-strip" id="dexStrip"></div>
+        <button class="dexbtn" id="dexBtn">도감 전체 보기</button>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- 포켓몬 획득 -->
+<div class="ov" id="revealOv"><div class="reveal" id="reveal"></div></div>
+
+<!-- 도감 -->
+<div class="ov" id="dexOv"><div class="sheet">
+  <h3>📘 Nick의 도감</h3>
+  <div class="help" id="dexSum"></div>
+  <div class="dexgrid" id="dexGrid"></div>
+  <div class="btns"><button class="btn pri" data-close="dexOv">닫기</button></div>
+</div></div>
+
+<!-- 설정 -->
+<div class="ov" id="setOv"><div class="sheet">
+  <h3>⚙️ 설정</h3>
+  <div class="row">
+    <button class="switch" id="wakeSw"><span>💡 화면 꺼짐 방지</span><span class="k"></span></button>
+    <div class="wakeinfo" id="wakeInfo"></div>
+  </div>
+  <div class="row two">
+    <div><label>이름</label><input type="text" id="sName"></div>
+    <div><label>시작 시간</label><input type="time" id="sStart"></div>
+    <div><label>출발 시간</label><input type="time" id="sDepart"></div>
+  </div>
+  <div class="row">
+    <label>아침 루틴 (한 줄에 하나: "시간 할 일")</label>
+    <textarea id="sRoutine"></textarea>
+    <div class="help">예) 07:45 아침 먹기 — 시간 순서대로 적어 주세요.</div>
+  </div>
+  <div class="row">
+    <label>요일별 준비물 (쉼표로 나눠 적기)</label>
+    <div class="week" id="sWeek"></div>
+  </div>
+  <div class="row">
+    <label>매일 챙길 것</label>
+    <input type="text" id="sDaily">
+  </div>
+  <div class="btns">
+    <button class="btn pri" id="saveBtn">저장</button>
+    <button class="btn" data-close="setOv">취소</button>
+    <button class="btn ghost" id="resetToday">오늘 체크 초기화</button>
+  </div>
+</div></div>
+
+<script>
+(() => {
+'use strict';
+const KEY = 'morningRoutine_v1';
+const API = 'https://pokeapi.co/api/v2/';
+const MAX_ID = 1025;
+const WD = ['일','월','화','수','목','금','토'];
+
+const DEFAULT = {
+  name: 'Nick', start: '07:20', depart: '08:20', wake: false,
+  routine: [
+    {t:'07:20', label:'이불 정리'},
+    {t:'07:25', label:'아침 먹기'},
+    {t:'07:42', label:'세수·양치'},
+    {t:'07:48', label:'교복 입기'},
+    {t:'07:55', label:'선크림 바르기'},
+    {t:'08:00', label:'오늘의 할 일'}
+  ],
+  rv: 3,
+  weekly: {0:[],1:[],2:['수영복','라이브러리백'],3:['숙제'],4:[],5:[],6:[]},
+  daily: ['도시락','물병','모자']
+};
+
+const AFF = [
+  ['나는 어려운 문제도 끝까지 풀어낼 수 있다.','I can figure out hard things.'],
+  ['실수는 내가 성장하고 있다는 증거다.','Mistakes mean I am learning.'],
+  ['오늘 나는 어제보다 한 걸음 더 간다.','Today I go one step further than yesterday.'],
+  ['나는 내 선택에 책임지는 사람이다.','I own my choices.'],
+  ['포기하고 싶을 때 한 번 더 해 본다.','When I want to quit, I try one more time.'],
+  ['나는 친구에게 힘이 되는 사람이다.','I am someone my friends can count on.'],
+  ['모르는 건 묻는 게 진짜 용기다.','Asking questions takes real courage.'],
+  ['나는 집중하면 뭐든 해낼 수 있다.','When I focus, I can do anything.'],
+  ['내 노력은 절대 사라지지 않는다.','My effort always counts.'],
+  ['나는 새로운 것에 도전하는 게 즐겁다.','I enjoy taking on new challenges.'],
+  ['연습이 실력을 만든다.','Practice builds skill.'],
+  ['나는 침착하게 생각할 수 있다.','I can stay calm and think clearly.'],
+  ['오늘도 나만의 기록을 깬다.','Today I beat my own record.'],
+  ['나는 다른 사람을 존중하고, 나도 존중받는다.','I respect others, and I deserve respect too.'],
+  ['느려도 괜찮다. 멈추지만 않으면 된다.','Slow is fine. Just keep going.'],
+  ['나는 팀에 꼭 필요한 선수다.','I am an important part of my team.'],
+  ['어려운 날도 지나간다. 나는 강하다.','Tough days pass. I am strong.'],
+  ['나는 영어도 한국어도 할 줄 아는 멋진 사람이다.','I can speak two languages. That is awesome.'],
+  ['좋은 하루는 내가 만든다.','I make my own good day.'],
+  ['나는 궁금한 게 많아서 똑똑해진다.','My curiosity makes me smarter.'],
+  ['약속을 지키는 게 진짜 멋이다.','Keeping my word is what makes me cool.'],
+  ['나는 실패해도 다시 일어선다.','When I fall, I get back up.'],
+  ['작은 습관이 큰 나를 만든다.','Small habits build a big me.'],
+  ['나는 내 몸과 마음을 잘 챙긴다.','I take care of my body and mind.'],
+  ['오늘 하나는 새로 배운다.','Today I will learn one new thing.'],
+  ['나는 남과 비교하지 않고 어제의 나와 비교한다.','I compare myself only to who I was yesterday.'],
+  ['나는 친절하지만 단단하다.','I am kind, and I am strong.'],
+  ['해 보기 전엔 모른다. 일단 해 본다.','I won\'t know until I try.'],
+  ['나는 문제를 해결하는 사람이다.','I am a problem solver.'],
+  ['나는 누구보다 나를 믿는다.','I believe in myself.'],
+  ['오늘의 노력이 내일의 레벨업이다.','Today\'s effort is tomorrow\'s level up.']
+];
+
+const TYPE_KO = {normal:'노말',fire:'불꽃',water:'물',grass:'풀',electric:'전기',ice:'얼음',fighting:'격투',poison:'독',ground:'땅',flying:'비행',psychic:'에스퍼',bug:'벌레',rock:'바위',ghost:'고스트',dragon:'드래곤',dark:'악',steel:'강철',fairy:'페어리'};
+const TYPE_COLOR = {normal:'#7d7f6a',fire:'#e2562d',water:'#3d7fe0',grass:'#3f9b4a',electric:'#d7a91f',ice:'#4fb7c6',fighting:'#b03a2e',poison:'#8c4aa8',ground:'#a97b3c',flying:'#6f86d6',psychic:'#e24b80',bug:'#7f9a1d',rock:'#9a8a4f',ghost:'#5e4f93',dragon:'#5a3fd6',dark:'#4c3f38',steel:'#6e8696',fairy:'#d77fbd'};
+
+const BALL = `<svg viewBox="0 0 100 100" class="ball"><circle cx="50" cy="50" r="46" fill="#f2f2f2" stroke="#111" stroke-width="6"/><path d="M4 50a46 46 0 0 1 92 0z" fill="#ff4d5a" stroke="#111" stroke-width="6"/><line x1="4" y1="50" x2="96" y2="50" stroke="#111" stroke-width="6"/><circle cx="50" cy="50" r="13" fill="#fff" stroke="#111" stroke-width="6"/></svg>`;
+const BALL_SMALL = BALL.replace('class="ball"','width="34" height="34" style="opacity:.25"');
+
+/* ── 저장소 ── */
+function load(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  s = s || {};
+  s.settings = Object.assign(JSON.parse(JSON.stringify(DEFAULT)), s.settings || {});
+  // 루틴 기본값이 바뀌면 한 번만 새 순서로 교체
+  if (s.settings.rv !== DEFAULT.rv){
+    s.settings.routine = JSON.parse(JSON.stringify(DEFAULT.routine));
+    s.settings.start = DEFAULT.start;
+    s.settings.rv = DEFAULT.rv;
+    if (s.day) { s.day.tasks = {}; s.day.bonus = null; }
+  }
+  s.day = s.day || {};
+  s.dex = s.dex || {};      // id -> {ko,en,img,imgS,types,leg,c,cs}
+  s.history = s.history || []; // 최근 획득 [{id,sh}]
+  return s;
+}
+let S = load();
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const todayStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toMin = hm => { const [h,m] = hm.split(':').map(Number); return h*60+m; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function ensureDay(){
+  const t = todayStr(new Date());
+  if (S.day.date !== t){ S.day = {date:t, tasks:{}, items:{}, bonus:null}; save(); return true; }
+  S.day.tasks = S.day.tasks || {}; S.day.items = S.day.items || {};
+  return false;
+}
+
+/* ── 포켓몬 API ── */
+const memCache = {};
+async function getPoke(id){
+  if (S.dex[id] && S.dex[id].img) return S.dex[id];
+  if (memCache[id]) return memCache[id];
+  const [p, sp] = await Promise.all([
+    fetch(API+'pokemon/'+id).then(r => { if(!r.ok) throw 0; return r.json(); }),
+    fetch(API+'pokemon-species/'+id).then(r => { if(!r.ok) throw 0; return r.json(); })
+  ]);
+  const nm = lang => (sp.names.find(n => n.language.name === lang) || {}).name;
+  const art = (p.sprites.other && p.sprites.other['official-artwork']) || {};
+  const info = {
+    ko: nm('ko') || p.name, en: nm('en') || p.name,
+    img: art.front_default || p.sprites.front_default,
+    imgS: art.front_shiny || p.sprites.front_shiny || art.front_default,
+    types: p.types.map(t => t.type.name),
+    leg: !!(sp.is_legendary || sp.is_mythical)
+  };
+  memCache[id] = info;
+  return info;
+}
+const rand = () => 1 + Math.floor(Math.random()*MAX_ID);
+
+async function catchMon(opts){
+  // opts: {shiny}
+  let id = rand(), info = null;
+  for (let tries = 0; tries < 3 && !info; tries++){
+    try { info = await getPoke(id); } catch(e){ id = rand(); }
+  }
+  if (!info) return null;
+  const sh = !!opts.shiny;
+  const d = S.dex[id] || Object.assign({c:0, cs:0}, info);
+  Object.assign(d, info);
+  if (sh) d.cs = (d.cs||0)+1; else d.c = (d.c||0)+1;
+  S.dex[id] = d;
+  S.history.unshift({id, sh});
+  S.history = S.history.slice(0, 60);
+  save();
+  return {id, sh, info:d};
+}
+function releaseMon(id, sh){
+  const d = S.dex[id]; if (!d) return;
+  if (sh) d.cs = Math.max(0,(d.cs||0)-1); else d.c = Math.max(0,(d.c||0)-1);
+  if (!d.c && !d.cs) delete S.dex[id];
+  const i = S.history.findIndex(h => h.id == id && !!h.sh === !!sh);
+  if (i >= 0) S.history.splice(i,1);
+}
+
+/* ── 획득 연출 ── */
+let revealTimer = null, shakeAt = 0;
+function showShaking(){
+  $('reveal').innerHTML = BALL + `<div class="hint">두근두근…</div>`;
+  $('revealOv').classList.add('show');
+  shakeAt = Date.now();
+}
+function showReveal(res, title){
+  const box = $('reveal');
+  if (Date.now() - shakeAt > 1500) showShaking();
+  const wait = Math.max(0, 1000 - (Date.now() - shakeAt));
+  clearTimeout(revealTimer);
+  revealTimer = setTimeout(() => {
+    if (!res){
+      box.innerHTML = BALL + `<div class="nm" style="font-size:30px">도장 쾅!</div><div class="hint">인터넷이 안 돼서 포켓몬은 다음에 만나요</div>`;
+      return;
+    }
+    const i = res.info;
+    const types = i.types.map(t => `<span style="background:${TYPE_COLOR[t]||'#2b3558'}">${TYPE_KO[t]||t}</span>`).join('');
+    const rank = res.sh ? '✨ 색이 다른 포켓몬!' : (i.leg ? '⭐ 전설·환상 포켓몬!' : (title || 'GET!'));
+    box.innerHTML = `<div class="rk">${esc(rank)}</div>
+      <img src="${esc(res.sh ? i.imgS : i.img)}" alt="">
+      <div class="nm">${esc(i.ko)}</div><div class="en">#${pad(res.id).padStart(4,'0')} · ${esc(i.en)}</div>
+      <div class="types">${types}</div>
+      <div class="hint">화면을 누르면 닫혀요</div>`;
+    box.style.animation='none'; box.offsetHeight; box.style.animation='';
+  }, wait);
+}
+$('revealOv').addEventListener('click', () => $('revealOv').classList.remove('show'));
+
+/* ── 렌더 ── */
+function nowMin(){ const d = new Date(); return d.getHours()*60 + d.getMinutes() + d.getSeconds()/60; }
+
+function renderTasks(){
+  const r = S.settings.routine, el = $('tasks'), n = nowMin();
+  const doneN = r.filter((_,i) => S.day.tasks[i]).length;
+  let curIdx = -1;
+  const inWindow = n >= toMin(S.settings.start) - 30 && n < toMin(S.settings.depart) + 30;
+  if (inWindow) r.forEach((t,i) => { if (toMin(t.t) <= n) curIdx = i; });
+  el.innerHTML = r.map((t,i) => {
+    const d = S.day.tasks[i];
+    let cls = 'task';
+    if (d) cls += ' done';
+    else if (i === curIdx) cls += ' now';
+    else if (i < curIdx) cls += ' late';
+    let st = BALL_SMALL;
+    if (d && d.id){
+      const m = S.dex[d.id];
+      if (m) st = `<img src="${esc(d.sh ? m.imgS : m.img)}" alt="">${d.sh?'<span class="shiny">✨</span>':''}`;
+    } else if (d){ st = '<span style="font-size:28px">✔</span>'; }
+    return `<button class="${cls}" data-i="${i}"><span class="tm">${esc(t.t)}</span><span class="nm">${esc(t.label)}</span><span class="stamp">${st}</span></button>`;
+  }).join('');
+  $('taskCount').textContent = `${doneN} / ${r.length}`;
+
+  const ac = $('allclear');
+  if (r.length && doneN === r.length){
+    ac.classList.add('show');
+    const b = S.day.bonus, m = b && S.dex[b.id];
+    $('bonusImg').src = m ? m.imgS : '';
+    $('bonusImg').style.display = m ? '' : 'none';
+    $('bonusTxt').innerHTML = b && b.early
+      ? `올클리어! 출발 전에 끝내서 <span style="color:var(--yellow)">✨색이 다른 ${esc(m?m.ko:'')}</span> 보너스 획득!`
+      : '올클리어! 오늘 아침 미션 완료 💪';
+  } else ac.classList.remove('show');
+}
+
+function itemsToday(){
+  const wd = new Date().getDay();
+  const list = [];
+  (S.settings.weekly[wd]||[]).forEach(x => list.push({n:x, tag:WD[wd]+'요일', cls:'today'}));
+  S.settings.daily.forEach(x => list.push({n:x, tag:'매일', cls:''}));
+  wxItems.forEach(x => { if (!list.some(l => l.n === x)) list.push({n:x, tag:'날씨', cls:'wx'}); });
+  return list;
+}
+function renderItems(){
+  const list = itemsToday();
+  const el = $('items');
+  if (!list.length){ el.innerHTML = '<div class="empty">오늘은 따로 챙길 게 없어요</div>'; $('itemCount').textContent=''; return; }
+  el.innerHTML = list.map(x => {
+    const d = S.day.items[x.n];
+    return `<button class="item${d?' done':''}" data-n="${esc(x.n)}"><span class="box">${d?'✓':''}</span>${esc(x.n)}<span class="tag ${x.cls}">${esc(x.tag)}</span></button>`;
+  }).join('');
+  const dn = list.filter(x => S.day.items[x.n]).length;
+  $('itemCount').textContent = `${dn} / ${list.length}`;
+}
+
+function renderDex(){
+  const ids = Object.keys(S.dex);
+  $('dexCount').textContent = `${ids.length}종`;
+  const recent = S.history.slice(0, 12);
+  $('dexStrip').innerHTML = recent.length
+    ? recent.map(h => { const m = S.dex[h.id]; if(!m) return ''; return `<div class="mon${m.leg?' leg':''}" title="${esc(m.ko)}"><img src="${esc(h.sh?m.imgS:m.img)}" alt="">${h.sh?'<span class="shiny" style="position:absolute;top:-4px;right:-2px;font-size:13px">✨</span>':''}</div>`; }).join('')
+    : '<div class="empty">미션을 끝내면 포켓몬이 모여요</div>';
+}
+
+function renderAffirm(){
+  const d = new Date();
+  const doy = Math.floor((d - new Date(d.getFullYear(),0,0)) / 864e5);
+  const a = AFF[doy % AFF.length];
+  $('affKo').textContent = a[0]; $('affEn').textContent = a[1];
+}
+
+function renderClock(){
+  const d = new Date(), st = S.settings;
+  $('clock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $('date').innerHTML = `<b>${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</b><br>${esc(st.name)}의 아침`;
+  const n = nowMin(), s = toMin(st.start), e = toMin(st.depart);
+  const c = $('count'); c.className = 'count';
+  if (n < s){
+    const left = Math.ceil(s - n);
+    $('countLbl').textContent = '루틴 시작까지';
+    $('countVal').textContent = left >= 60 ? `${Math.floor(left/60)}시간 ${left%60}분` : `${left}분`;
+  } else if (n < e){
+    const secs = Math.max(0, Math.round((e - n)*60));
+    $('countLbl').textContent = `${st.depart} 출발까지`;
+    $('countVal').textContent = `${Math.floor(secs/60)}:${pad(secs%60)}`;
+    c.classList.add(secs <= 300 ? 'hot' : secs <= 900 ? 'warn' : 'ok');
+  } else if (n < e + 60){
+    $('countLbl').textContent = '출발 시간!';
+    $('countVal').textContent = '잘 다녀와 👋';
+    c.classList.add('ok');
+  } else {
+    $('countLbl').textContent = '내일 출발';
+    $('countVal').textContent = st.depart;
+  }
+  // 타임라인
+  $('tlRange').textContent = `${st.start} 시작 → ${st.depart} 출발`;
+  const tp = Math.min(1, Math.max(0, (n - s) / (e - s)));
+  $('barTime').style.width = (tp*100)+'%';
+  const r = st.routine, doneN = r.filter((_,i) => S.day.tasks[i]).length;
+  $('barTask').style.width = (r.length ? doneN / r.length * 100 : 0) + '%';
+  // 페이스
+  let due = 0; r.forEach(t => { if (toMin(t.t) + 5 <= n) due++; });
+  const p = $('pace');
+  if (n < s || n >= e){ p.className = 'pace idle'; p.textContent = n < s ? '대기 중' : (doneN === r.length ? '오늘 미션 완료' : '시간 종료'); }
+  else if (doneN >= due){ p.className = 'pace good'; p.textContent = '👍 페이스 좋아요'; }
+  else { p.className = 'pace bad'; p.textContent = `⏩ ${due - doneN}개 밀렸어요, 조금 서두르자`; }
+}
+
+function renderAll(){ renderClock(); renderTasks(); renderItems(); renderDex(); renderAffirm(); }
+
+/* ── 이벤트: 루틴 체크 ── */
+let busy = false;
+$('tasks').addEventListener('click', async ev => {
+  const b = ev.target.closest('.task'); if (!b || busy) return;
+  const i = +b.dataset.i;
+  const cur = S.day.tasks[i];
+  if (cur){
+    if (!confirm('이 미션 체크를 취소할까요? (받은 포켓몬도 빠져요)')) return;
+    if (cur.id) releaseMon(cur.id, cur.sh);
+    delete S.day.tasks[i];
+    // 올클리어 보너스 회수
+    if (S.day.bonus){ releaseMon(S.day.bonus.id, true); S.day.bonus = null; }
+    save(); renderAll(); return;
+  }
+  busy = true;
+  S.day.tasks[i] = {pending:true}; renderTasks();
+  const shiny = Math.random() < 0.05;
+  showShaking(); // 공 흔들기 먼저
+  const res = await catchMon({shiny});
+  S.day.tasks[i] = res ? {id:res.id, sh:res.sh} : {offline:true};
+  save();
+  showReveal(res);
+  renderAll();
+  // 올클리어 보너스
+  const r = S.settings.routine;
+  if (r.every((_,k) => S.day.tasks[k]) && !S.day.bonus){
+    const early = nowMin() < toMin(S.settings.depart);
+    if (early){
+      const bres = await catchMon({shiny:true});
+      if (bres){
+        S.day.bonus = {id:bres.id, early:true}; save();
+        setTimeout(() => showReveal(bres, '🏆 올클리어 보너스!'), 2600);
+      }
+    } else { S.day.bonus = {id:0, early:false}; save(); }
+    renderAll();
+  }
+  busy = false;
+});
+
+/* ── 이벤트: 준비물 ── */
+$('items').addEventListener('click', ev => {
+  const b = ev.target.closest('.item'); if (!b) return;
+  const n = b.dataset.n;
+  if (S.day.items[n]) delete S.day.items[n]; else S.day.items[n] = true;
+  save(); renderItems();
+});
+
+/* ── 도감 ── */
+$('dexBtn').addEventListener('click', () => {
+  const ids = Object.keys(S.dex).sort((a,b) => a-b);
+  const total = ids.reduce((s,id) => s + (S.dex[id].c||0) + (S.dex[id].cs||0), 0);
+  const leg = ids.filter(id => S.dex[id].leg).length;
+  const sh = ids.filter(id => S.dex[id].cs).length;
+  $('dexSum').textContent = `모은 종류 ${ids.length} / ${MAX_ID} · 받은 도장 ${total}개 · 전설·환상 ${leg}종 · 색이 다른 포켓몬 ${sh}종`;
+  $('dexGrid').innerHTML = ids.length ? ids.map(id => { const m = S.dex[id];
+    return `<div class="m"${m.leg?' style="box-shadow:0 0 0 2px var(--yellow) inset"':''}><img src="${esc(m.cs && !m.c ? m.imgS : m.img)}" alt=""><div>${esc(m.ko)}</div><div class="c">#${String(id).padStart(4,'0')} ×${(m.c||0)+(m.cs||0)}${m.cs?' ✨':''}</div></div>`;
+  }).join('') : '<div class="empty">아직 없어요. 내일 아침 첫 미션부터 시작!</div>';
+  $('dexOv').classList.add('show');
+});
+document.addEventListener('click', ev => {
+  const c = ev.target.closest('[data-close]'); if (c) $(c.dataset.close).classList.remove('show');
+});
+
+/* ── 날씨 (Open-Meteo, 키 필요 없음) ── */
+const LAT = -27.4818, LON = 153.0096;
+let wxItems = [];
+const WX = c => c===0?['☀️','맑음']:c<=2?['🌤','구름 조금']:c===3?['☁️','흐림']:c<=48?['🌫','안개']:c<=57?['🌦','이슬비']:c<=67?['🌧','비']:c<=77?['🌨','눈']:c<=82?['🌧','소나기']:['⛈','뇌우'];
+async function loadWeather(){
+  try{
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,weather_code&timezone=Australia%2FBrisbane&forecast_days=1`;
+    const j = await fetch(url).then(r => r.json());
+    const cur = j.current, dl = j.daily;
+    const [ic, txt] = WX(cur.weather_code);
+    const rain = dl.precipitation_probability_max[0] ?? 0, uv = dl.uv_index_max[0] ?? 0;
+    const hi = Math.round(dl.temperature_2m_max[0]), lo = Math.round(dl.temperature_2m_min[0]);
+    wxItems = [];
+    const tips = [];
+    if (rain >= 40){ wxItems.push('우산'); tips.push('☔ 비 올 수 있어요 — 우산 챙기기'); }
+    if (uv >= 6){ tips.push('🧢 자외선 강함 — 모자·선크림 꼭'); }
+    if (lo <= 14){ wxItems.push('점퍼'); tips.push('🧥 아침에 쌀쌀해요 — 점퍼 챙기기'); }
+    if (hi >= 32){ tips.push('🥤 많이 더워요 — 물 자주 마시기'); }
+    $('wx').innerHTML = `<div class="wx-main"><div class="wx-ic">${ic}</div><div><div class="wx-t">${Math.round(cur.temperature_2m)}°</div><div class="wx-d">${txt} · 체감 ${Math.round(cur.apparent_temperature)}°</div></div></div>
+      <div class="wx-row"><span class="chip">최고 <b>${hi}°</b></span><span class="chip">최저 <b>${lo}°</b></span><span class="chip">비 <b>${rain}%</b></span><span class="chip">자외선 <b>${Math.round(uv)}</b></span></div>
+      ${tips.length ? `<div class="wx-row">${tips.map(t => `<span class="chip" style="background:rgba(90,169,255,.14)">${t}</span>`).join('')}</div>` : ''}`;
+    const d = new Date(); $('wxUpd').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())} 기준`;
+    renderItems();
+  } catch(e){
+    $('wx').innerHTML = '<div class="empty">날씨를 못 불러왔어요 (인터넷 확인)</div>';
+  }
+}
+
+/* ── 화면 꺼짐 방지 ── */
+let lock = null;
+async function wakeOn(){
+  if (!('wakeLock' in navigator)){ wakeMsg('bad','이 브라우저는 화면 꺼짐 방지를 지원하지 않아요. 아래 "안드로이드 설정 방법"을 써 주세요.'); return false; }
+  try{
+    lock = await navigator.wakeLock.request('screen');
+    lock.addEventListener('release', () => { lock = null; updWakeUI(); });
+    wakeMsg('ok','켜짐 — 이 화면이 열려 있는 동안 꺼지지 않아요.');
+    updWakeUI(); return true;
+  } catch(e){
+    wakeMsg('bad','켜지 못했어요. 화면을 한 번 터치한 뒤 다시 켜 보세요. 계속 안 되면 아래 안드로이드 설정을 써 주세요.');
+    updWakeUI(); return false;
+  }
+}
+function wakeOff(){ if (lock){ lock.release(); lock = null; } wakeMsg('', '꺼짐'); updWakeUI(); }
+const ANDROID_TIP = '<br><b>안드로이드 설정 방법:</b> 설정 → 디스플레이 → 화면 자동 꺼짐 → 최대 시간. 또는 개발자 옵션 → "충전 중 화면 켜짐 유지".';
+function wakeMsg(cls, t){ const el = $('wakeInfo'); el.className = 'wakeinfo ' + cls; el.innerHTML = t + ANDROID_TIP; }
+function updWakeUI(){
+  const on = S.settings.wake;
+  $('wakeSw').classList.toggle('on', on);
+  $('wakeBtn').classList.toggle('on', on && !!lock);
+}
+async function setWake(on){
+  S.settings.wake = on; save();
+  if (on) await wakeOn(); else wakeOff();
+  updWakeUI();
+}
+$('wakeSw').addEventListener('click', () => setWake(!S.settings.wake));
+$('wakeBtn').addEventListener('click', () => setWake(!(S.settings.wake && lock)));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible'){ if (S.settings.wake && !lock) wakeOn(); ensureDay() ; renderAll(); }
+});
+// 자동으로 다시 켜기 실패 시, 첫 터치 때 재시도
+document.addEventListener('pointerdown', () => { if (S.settings.wake && !lock) wakeOn(); }, {passive:true});
+
+/* ── 전체 화면 ── */
+$('fsBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
+  else document.exitFullscreen?.();
+});
+
+/* ── 설정 ── */
+$('setBtn').addEventListener('click', () => {
+  const st = S.settings;
+  $('sName').value = st.name; $('sStart').value = st.start; $('sDepart').value = st.depart;
+  $('sRoutine').value = st.routine.map(r => `${r.t} ${r.label}`).join('\n');
+  $('sWeek').innerHTML = [1,2,3,4,5,6,0].map(w => `<span>${WD[w]}</span><input type="text" data-w="${w}" value="${esc((st.weekly[w]||[]).join(', '))}" placeholder="없음">`).join('');
+  $('sDaily').value = st.daily.join(', ');
+  if (st.wake) wakeMsg(lock ? 'ok' : 'bad', lock ? '켜짐 — 이 화면이 열려 있는 동안 꺼지지 않아요.' : '설정은 켜짐이지만 아직 적용 전이에요. 화면을 터치하면 다시 시도해요.');
+  else wakeMsg('', '꺼짐 — 켜 두면 거실에 세워 둬도 화면이 안 꺼져요.');
+  updWakeUI();
+  $('setOv').classList.add('show');
+});
+const splitList = v => v.split(/[,，、]/).map(x => x.trim()).filter(Boolean);
+$('saveBtn').addEventListener('click', () => {
+  const st = S.settings;
+  const routine = $('sRoutine').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const m = l.match(/^(\d{1,2}):(\d{2})\s+(.+)$/);
+    return m ? {t:`${pad(+m[1])}:${m[2]}`, label:m[3].trim()} : null;
+  }).filter(Boolean).sort((a,b) => toMin(a.t) - toMin(b.t));
+  if (!routine.length){ alert('루틴을 "07:30 세수"처럼 한 줄씩 적어 주세요.'); return; }
+  const changed = JSON.stringify(routine) !== JSON.stringify(st.routine);
+  st.name = $('sName').value.trim() || 'Nick';
+  st.start = $('sStart').value || '07:20';
+  st.depart = $('sDepart').value || '08:20';
+  st.routine = routine;
+  document.querySelectorAll('#sWeek input').forEach(inp => st.weekly[inp.dataset.w] = splitList(inp.value));
+  st.daily = splitList($('sDaily').value);
+  if (changed){ S.day.tasks = {}; S.day.bonus = null; }
+  save(); $('setOv').classList.remove('show'); renderAll();
+});
+$('resetToday').addEventListener('click', () => {
+  if (!confirm('오늘 체크를 모두 지울까요? (이미 받은 포켓몬은 도감에 남아요)')) return;
+  S.day = {date:todayStr(new Date()), tasks:{}, items:{}, bonus:null}; save();
+  $('setOv').classList.remove('show'); renderAll();
+});
+
+/* ── 시작 ── */
+ensureDay();
+document.title = `${S.settings.name} 아침 루틴`;
+renderAll();
+loadWeather();
+if (S.settings.wake) wakeOn();
+setInterval(() => {
+  if (ensureDay()){ renderAll(); loadWeather(); }
+  renderClock();
+}, 1000);
+setInterval(renderTasks, 30000);          // 지금 할 미션 표시 갱신
+setInterval(loadWeather, 30*60*1000);     // 30분마다 날씨
+})();
+</script>
+</body>
+</html>
