@@ -315,7 +315,7 @@ header .spacer{margin-left:auto}
   </div>
   <div class="row">
     <button class="switch" id="soundSw"><span>🔔 소리 알림 (출발 5분 전 · 미션 밀릴 때)</span><span class="k"></span></button>
-    <div class="soundrow"><button class="btn" id="testFive">5분 전 소리 듣기</button><button class="btn" id="testLate">밀림 소리 듣기</button></div>
+    <div class="soundrow"><button class="btn" id="testLate">밀림 소리 듣기</button></div>
     <div class="wakeinfo" id="voiceInfo"></div>
     <div class="wakeinfo">태블릿 소리를 켜 두세요. 페이지를 연 뒤 화면을 한 번 터치해야 소리가 나요(브라우저 규칙).</div>
   </div>
@@ -830,7 +830,7 @@ function updVoiceInfo(){
   if (!('speechSynthesis' in window)){ el.className = 'wakeinfo bad'; el.textContent = '이 브라우저는 음성 읽기를 지원하지 않아요. 소리(띠리링)만 나요.'; return; }
   if (koVoice){ el.className = 'wakeinfo ok'; el.textContent = `🗣 한국어 목소리: ${koVoice.name}`; }
   else { el.className = 'wakeinfo bad';
-    el.innerHTML = '태블릿에 한국어 목소리가 없어서 말은 안 하고 소리(띠리링)만 나요.<br><b>설치 방법:</b> 태블릿 설정 → 일반(일반 관리) → 언어 → 텍스트 음성 변환(TTS) → 기본 엔진을 <b>Google 음성 인식 및 합성</b>으로 → ⚙️ → 음성 데이터 설치 → <b>한국어</b> 받기 → 이 페이지 새로고침'; }
+    el.innerHTML = '기본 미션·5분 전 알림은 녹음된 한국어 음성으로 나와요. 직접 바꾼 미션 이름은 태블릿 한국어 목소리가 필요해요.<br><b>설치 방법:</b> 태블릿 설정 → 일반(일반 관리) → 언어 → 텍스트 음성 변환(TTS) → 기본 엔진을 <b>Google 음성 인식 및 합성</b>으로 → ⚙️ → 음성 데이터 설치 → <b>한국어</b> 받기 → 이 페이지 새로고침'; }
 }
 function say(text){
   try{
@@ -848,8 +848,21 @@ function showToast(msg, kind){
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 10000);
 }
 $('toast').addEventListener('click', () => $('toast').classList.remove('show'));
-function alertKid(kind, msg, speech){
-  if (S.settings.sound){ tone(SND[kind]); if (speech) say(speech); }
+// 녹음해 둔 한국어 음성 (태블릿 목소리가 영어로 읽는 문제 해결). 없는 문장만 태블릿 목소리로.
+const CLIPS = {'five':'voice/five.mp3','이불 정리':'voice/m1.mp3','아침 먹기':'voice/m2.mp3','세수·양치':'voice/m3.mp3',
+  '교복 입기':'voice/m4.mp3','선크림 바르기':'voice/m5.mp3','오늘의 할 일':'voice/m6.mp3'};
+function speakClip(key, text){
+  const src = location.protocol.startsWith('http') && CLIPS[key];
+  if (!src){ if (text) say(text); return; }
+  setTimeout(() => {
+    try{
+      const a = new Audio(src); a.volume = 1;
+      a.play().catch(() => { if (text) say(text); });
+    } catch(e){ if (text) say(text); }
+  }, 2200);
+}
+function alertKid(kind, msg, speech, clip){
+  if (S.settings.sound){ tone(SND[kind]); if (speech) speakClip(clip, speech); }
   showToast(msg, kind);
 }
 function checkAlerts(n, s, e){
@@ -858,7 +871,7 @@ function checkAlerts(n, s, e){
   const r = S.settings.routine;
   if (!al.five && n >= e - 5){
     al.five = true; save();
-    alertKid('five', '⏰ 등교 5분 전! 신발 신고 출발 준비', `${S.settings.name}, 등교 5분 전이에요. 출발 준비하세요!`);
+    alertKid('five', '⏰ 등교 5분 전! 신발 신고 출발 준비', `${S.settings.name}, 등교 5분 전이에요. 출발 준비하세요!`, 'five');
     return;
   }
   const newly = [];
@@ -866,13 +879,12 @@ function checkAlerts(n, s, e){
   if (newly.length){
     newly.forEach(i => al.late[i] = true); save();
     const next = r.find((t,i) => !S.day.tasks[i]);
-    if (next) alertKid('late', `⏩ 미션이 밀렸어요 — 지금: ${next.label}`, `${next.label}, 할 시간이에요!`);
+    if (next) alertKid('late', `⏩ 미션이 밀렸어요 — 지금: ${next.label}`, `${next.label}, 할 시간이에요!`, next.label);
   }
 }
 function updSoundUI(){ $('soundSw').classList.toggle('on', !!S.settings.sound); }
 $('soundSw').addEventListener('click', () => { S.settings.sound = !S.settings.sound; save(); updSoundUI(); });
-$('testFive').addEventListener('click', () => { tone(SND.five); say('등교 5분 전이에요. 출발 준비하세요!'); });
-$('testLate').addEventListener('click', () => { tone(SND.late); say('양치, 할 시간이에요!'); });
+$('testLate').addEventListener('click', () => { tone(SND.late); speakClip('세수·양치', '세수·양치, 할 시간이에요!'); });
 
 /* ── 전체 화면 ── */
 // 전체 화면이 되면 가로로 고정 (안드로이드 Chrome은 전체 화면일 때만 고정 가능)
