@@ -316,6 +316,7 @@ header .spacer{margin-left:auto}
   <div class="row">
     <button class="switch" id="soundSw"><span>🔔 소리 알림 (출발 5분 전 · 미션 밀릴 때)</span><span class="k"></span></button>
     <div class="soundrow"><button class="btn" id="testFive">5분 전 소리 듣기</button><button class="btn" id="testLate">밀림 소리 듣기</button></div>
+    <div class="wakeinfo" id="voiceInfo"></div>
     <div class="wakeinfo">태블릿 소리를 켜 두세요. 페이지를 연 뒤 화면을 한 번 터치해야 소리가 나요(브라우저 규칙).</div>
   </div>
   <div class="row two">
@@ -808,10 +809,36 @@ function tone(seq){
     t += .35;
   }
 }
+// 한국어 목소리 고르기 — 태블릿에 깔린 목소리 중 한국어(ko)를 직접 지정해야 영어 목소리로 읽지 않는다
+let koVoice = null;
+function pickKoVoice(){
+  try{
+    const vs = speechSynthesis.getVoices();
+    const ko = vs.filter(v => /^ko([-_]|$)/i.test(v.lang) || /korean|한국/i.test(v.name));
+    koVoice = ko.find(v => /google/i.test(v.name)) || ko.find(v => v.localService) || ko[0] || null;
+  } catch(e){ koVoice = null; }
+  updVoiceInfo();
+  return koVoice;
+}
+if ('speechSynthesis' in window){
+  pickKoVoice();
+  speechSynthesis.addEventListener?.('voiceschanged', pickKoVoice);
+  setTimeout(pickKoVoice, 1500);
+}
+function updVoiceInfo(){
+  const el = document.getElementById('voiceInfo'); if (!el) return;
+  if (!('speechSynthesis' in window)){ el.className = 'wakeinfo bad'; el.textContent = '이 브라우저는 음성 읽기를 지원하지 않아요. 소리(띠리링)만 나요.'; return; }
+  if (koVoice){ el.className = 'wakeinfo ok'; el.textContent = `🗣 한국어 목소리: ${koVoice.name}`; }
+  else { el.className = 'wakeinfo bad';
+    el.innerHTML = '태블릿에 한국어 목소리가 없어서 말은 안 하고 소리(띠리링)만 나요.<br><b>설치 방법:</b> 태블릿 설정 → 일반(일반 관리) → 언어 → 텍스트 음성 변환(TTS) → 기본 엔진을 <b>Google 음성 인식 및 합성</b>으로 → ⚙️ → 음성 데이터 설치 → <b>한국어</b> 받기 → 이 페이지 새로고침'; }
+}
 function say(text){
   try{
     if (!('speechSynthesis' in window)) return;
-    const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 1.05;
+    const v = koVoice || pickKoVoice();
+    if (!v) return; // 한국어 목소리가 없으면 영어 목소리로 이상하게 읽지 않도록 말하지 않음
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = v; u.lang = v.lang || 'ko-KR'; u.rate = 1.0; u.pitch = 1.05;
     speechSynthesis.cancel(); setTimeout(() => speechSynthesis.speak(u), 2200);
   } catch(e){}
 }
@@ -873,7 +900,7 @@ $('setBtn').addEventListener('click', () => {
   $('sDaily').value = st.daily.join(', ');
   if (st.wake) wakeMsg(lock ? 'ok' : 'bad', lock ? '켜짐 — 이 화면이 열려 있는 동안 꺼지지 않아요.' : '설정은 켜짐이지만 아직 적용 전이에요. 화면을 터치하면 다시 시도해요.');
   else wakeMsg('', '꺼짐 — 켜 두면 거실에 세워 둬도 화면이 안 꺼져요.');
-  updWakeUI(); updSoundUI();
+  updWakeUI(); updSoundUI(); pickKoVoice();
   $('setOv').classList.add('show');
 });
 const splitList = v => v.split(/[,，、]/).map(x => x.trim()).filter(Boolean);
