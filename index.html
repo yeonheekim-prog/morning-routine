@@ -187,6 +187,56 @@ header .spacer{margin-left:auto}
 /* 세로 화면·작은 화면 */
 @media (max-width:1100px){ .grid{grid-template-columns:1fr 1fr} .grid>.col:last-child{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr} }
 @media (max-width:720px){ .grid{grid-template-columns:1fr} .grid>.col:last-child{grid-template-columns:1fr} .count{margin-left:0;width:100%;text-align:left} .sheet .two{grid-template-columns:1fr} }
+
+/* ── 가로 화면: 스크롤 없이 한 화면에 ── */
+@media (orientation:landscape) and (min-width:900px){
+  html,body{height:100%;overflow:hidden}
+  .app{height:100vh;height:100dvh;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:1.4vh;padding:1.6vh 18px}
+  header{flex-wrap:nowrap;gap:14px}
+  .clock{font-size:min(5vw,7vh)}
+  .date{font-size:min(16px,2.2vh)} .date b{font-size:min(20px,2.8vh)}
+  .iconbtn{width:min(48px,6.5vh);height:min(48px,6.5vh);font-size:min(22px,3vh)}
+  .hero{padding:1vh 22px 1.2vh}
+  .hero .lbl{font-size:min(24px,3vh)}
+  .hero .val{font-size:min(12vw,15vh)}
+  .tl-legend{margin-top:4px}
+  .grid{grid-template-columns:1.35fr 1fr 1fr;min-height:0}
+  .grid>.col,.grid>.col:last-child{grid-column:auto;display:flex;flex-direction:column;gap:1.4vh;min-height:0}
+  .card{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:1.6vh 16px}
+  .card h2{margin-bottom:1vh;font-size:min(16px,2.2vh)}
+  .grid>.col:first-child .card{flex:1}
+  .tasks{flex:1;min-height:0;gap:min(8px,1vh)}
+  .task{flex:1 1 0;min-height:0;padding:0 12px}
+  .task .nm{font-size:min(21px,3vh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .stamp{width:min(54px,6.8vh);height:min(54px,6.8vh)}
+  .stamp img{width:min(58px,7.4vh);height:min(58px,7.4vh)}
+  .stamp svg{width:min(32px,4vh);height:min(32px,4vh)}
+  .undo{padding:min(9px,1.2vh) 12px;font-size:min(15px,2vh)}
+  .allclear{margin-top:1vh;padding:1vh 12px;font-size:min(16px,2.2vh)}
+  .allclear img{width:min(46px,6vh);height:min(46px,6vh)}
+  .grid>.col:nth-child(2) .card{flex:1}
+  .items{grid-template-columns:1fr}
+  .items.many{grid-template-columns:1fr 1fr}
+  .wx-row:nth-of-type(3) .chip{font-size:min(13px,1.8vh)}
+  .items{display:grid;grid-template-columns:1fr 1fr;gap:min(8px,1vh);align-content:start;overflow:hidden}
+  .item{padding:min(10px,1.3vh) 10px;font-size:min(18px,2.5vh);gap:8px}
+  .item .box{width:min(26px,3.4vh);height:min(26px,3.4vh)}
+  .item .tag{display:none}
+  .wx-ic{font-size:min(48px,6vh)} .wx-t{font-size:min(40px,5.4vh)}
+  .wx-row{margin-top:1vh;gap:6px} .chip{padding:5px 8px;font-size:min(14px,1.9vh)}
+  .affirm .ko{font-size:min(26px,3.4vh)} .affirm .en{font-size:min(18px,2.4vh);margin-top:.6vh}
+  .grid>.col:last-child .card{flex:none}
+  .grid>.col:last-child .card:last-child{flex:1 1 0;min-height:min(90px,14vh)}
+  .dex-strip{flex:1;min-height:0;overflow:hidden;align-content:flex-start}
+  .dex-strip .mon{width:min(50px,6.5vh);height:min(50px,6.5vh)}
+  .dex-strip img{width:100%;height:100%}
+  .dexbtn{margin-top:auto;padding:min(10px,1.3vh)}
+}
+/* 키가 작은 가로 화면: 날씨 팁·도감 그림은 숨기고 핵심만 */
+@media (orientation:landscape) and (min-width:900px) and (max-height:720px){
+  #wx .wx-row:nth-of-type(3){display:none}
+  .dex-strip{display:none}
+}
 </style>
 </head>
 <body>
@@ -225,16 +275,16 @@ header .spacer{margin-left:auto}
         <h2>🎒 오늘 챙길 것 <span class="sub" id="itemCount"></span></h2>
         <div class="items" id="items"></div>
       </section>
-      <section class="card" id="wxCard">
-        <h2>🌤 West End 날씨 <span class="sub" id="wxUpd"></span></h2>
-        <div id="wx"><div class="empty">날씨 불러오는 중…</div></div>
-      </section>
     </div>
     <div class="col">
       <section class="card affirm">
         <h2>💬 오늘의 한마디</h2>
         <div class="ko" id="affKo"></div>
         <div class="en" id="affEn"></div>
+      </section>
+      <section class="card" id="wxCard">
+        <h2>🌤 West End 날씨 <span class="sub" id="wxUpd"></span></h2>
+        <div id="wx"><div class="empty">날씨 불러오는 중…</div></div>
       </section>
       <section class="card">
         <h2>📘 내 도감 <span class="sub" id="dexCount"></span></h2>
@@ -528,6 +578,7 @@ function itemsToday(){
 function renderItems(){
   const list = itemsToday();
   const el = $('items');
+  el.classList.toggle('many', list.length > 5);
   if (!list.length){ el.innerHTML = '<div class="empty">오늘은 따로 챙길 게 없어요</div>'; $('itemCount').textContent=''; return; }
   el.innerHTML = list.map(x => {
     const d = S.day.items[x.n];
